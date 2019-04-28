@@ -115,7 +115,7 @@ extern void dmx_set_start(uint8_t start);
 * DMX Timer interrupt. Called as part of dmx_interrupt() but can call seperately for optimization
 *
 */
-extern void dmx_timer_interrupt(void);
+extern inline void dmx_timer_interrupt(void);
 
 /**
 * <B><FONT COLOR=BLUE>uint8_t</FONT> dmx_timer_ms(<FONT COLOR=BLUE>void</FONT>)</B>
@@ -173,7 +173,7 @@ extern void     dmx_sec_clear(void);
 * DMX Transmit interrupt. Called as part of dmx_interrupt() but can call seperately for optimization
 *
 */
-extern void dmx_tx_interrupt(void);
+extern inline void dmx_tx_interrupt(void);
 
 
 /**

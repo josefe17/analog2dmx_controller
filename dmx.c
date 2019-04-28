@@ -701,7 +701,7 @@ void dmx_write( uint16_t addr, uint8_t *data, uint8_t num)
     {
        addr--;  // Adjust offset to match 0-511 range for buffer
        DMX_TXIE=0;   // Go Atomic ##### SHOULD JUST DISABLE TXIE
-       for(;num--;num>0)
+       for(;num>0;num--)
        {
            DMX_TxData[addr]=*data;
            addr++;
