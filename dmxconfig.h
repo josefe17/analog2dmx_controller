@@ -1,4 +1,5 @@
 #include "config.h"
+
 #ifndef _DMXCONFIG_H
 #define _DMXCONFIG_H
 /*****************************************************************************
