@@ -1,3 +1,5 @@
+#include "pic_adc.h"
+
 void adc_init()
 {
     ADCON0bits.GO_DONE=0;       // Converter is idle
