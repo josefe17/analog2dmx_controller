@@ -63,7 +63,7 @@ void main(void)
     {
         start_conversion(adc_output_buffer, 0 , ANALOG_CHANNELS_SIZE);
         set_deadZone(adc_output_buffer, ANALOG_CHANNELS_SIZE);
-        load_tx_buffer(read_address(), &address);
+        load_tx_buffer(read_address(), &address);              
         __delay_ms(5);
     }
 }
@@ -89,29 +89,30 @@ void set_deadZone(uint8_t* values, uint16_t valuesCount)
 
 void adc_init()
 {
-    ADCON0bits.GO_DONE=0;       // Converter is idle
-    ADCON1=0b00000011;          // No reference inputs, all channels analog inputs
-    ADCON2=0b00000110;          // Left justified, 0 Tad adquisition, Fosc/64
-    TRISA |= 0b00101111;        // Set TRIS for ADC pins
+    ADCON0bits.GO_DONE = 0;       // Converter is idle
+    ADCON1 = 0b00000011;          // No reference inputs, all channels analog inputs
+    ADCON2 = 0b00000110;          // Left justified, 0 Tad adquisition, Fosc/64
+    TRISA |= 0b00101111;          // Set TRIS for ADC pins
     TRISB |= 0b00011111;
     TRISE |= 0b00000111;    
-    ADON=1;                       // ADC on
+    ADCON0bits.ADON = 1;          // ADC on
 }
 
 void start_conversion(uint8_t* output_buffer, uint8_t first_channel, uint8_t last_channel)
 {
     uint8_t adc_index = first_channel;
-    ADCON0bits.CHS=adc_index;       // Select channel
-    while (adc_index<last_channel)
+    ADCON0bits.CHS = adc_index;       // Select channel
+    while (adc_index < last_channel)
     {
         __delay_us(100);                 // Wait for adquisition time
-        ADCON0bits.GO_DONE = 1;         // Start conversion
+        ADCON0bits.GO_DONE = 1;          // Start conversion
         __delay_us(10);                  // Wait 1 us before changing mux to allow C to be disconnected
-        ADCON0bits.CHS=++adc_index;     // Increment channel index
-        while (ADCON0bits.GO_DONE){}    // Wait for conversion
-        output_buffer[adc_index-1] = ADRESH; // Save converted value
+        ADCON0bits.CHS = ++adc_index;    // Increment channel index
+        while (ADCON0bits.GO_DONE){}     // Wait for conversion
+        output_buffer[adc_index - 1] = ADRESH; // Save converted value
+        //output_buffer[adc_index - 1] = 64 + (adc_index - 1) * 10;
         ADRESH = 0;
-        ADRESL=0;
+        ADRESL = 0;
     }
 }
 
@@ -121,7 +122,7 @@ void load_tx_buffer(uint16_t start_address, uint16_t* address)
     uint8_t adc_buffer_index;
     if ((*address) != start_address)                     // If address has changed
     {        
-        for (i=0; i < start_address; i++)             // Writes 0 before starting analog channels
+        for (i = 0; i < start_address; i++)             // Writes 0 before starting analog channels
         {
             dmx_write_byte(i + 1, 0);
         }
@@ -148,7 +149,7 @@ void load_tx_buffer(uint16_t start_address, uint16_t* address)
         {
             dmx_write_byte(i + 1, 0);
         }
-        (*address)=start_address;                     // Store new address
+        *address = start_address;                     // Store new address
     }
     else                                            // If starting address hasn't changed
     {                                               // only rewrites data channels
