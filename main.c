@@ -15,6 +15,8 @@
 #define deadZoneThreshold 25
 #define deadZoneValue     0
 
+#define ADDRESS_FOR_SCHOOOL_MODE 1
+
 //Dip switch bits
 //Bit 0 SW 1: RC0
 //Bit 1 SW 2: RC1
@@ -40,6 +42,7 @@ void load_tx_buffer (uint16_t start_address, uint16_t* address);                
 void port_init(void);                                                                          // configures I/O ports
 uint16_t  read_address(void);                                                                  // reads starting address from DIP switch
 uint8_t check_sampling_curve(void);                                                            // checks if linear shaping or not
+uint8_t check_special_mode(void);                                                              // checks if special mapping modes are required
 void set_deadZone(uint8_t* values, uint16_t valuesCount);
 void interrupts_init(void);                                                                    // configures global MCU's interrupts
 
@@ -109,8 +112,7 @@ void start_conversion(uint8_t* output_buffer, uint8_t first_channel, uint8_t las
         __delay_us(10);                  // Wait 1 us before changing mux to allow C to be disconnected
         ADCON0bits.CHS = ++adc_index;    // Increment channel index
         while (ADCON0bits.GO_DONE){}     // Wait for conversion
-        output_buffer[adc_index - 1] = ADRESH; // Save converted value
-        //output_buffer[adc_index - 1] = 64 + (adc_index - 1) * 10;
+        output_buffer[adc_index - 1] = ADRESH; // Save converted value       
         ADRESH = 0;
         ADRESL = 0;
     }
@@ -120,55 +122,233 @@ void load_tx_buffer(uint16_t start_address, uint16_t* address)
 {
     uint16_t i; // Tx buffer_index
     uint8_t adc_buffer_index;
-    if ((*address) != start_address)                     // If address has changed
-    {        
-        for (i = 0; i < start_address; i++)             // Writes 0 before starting analog channels
+    if (check_special_mode())
+    {
+        if (start_address == ADDRESS_FOR_SCHOOOL_MODE)
         {
-            dmx_write_byte(i + 1, 0);
-        }
-
-        if(check_sampling_curve())                 // If non-linear response enabled
-        {
-            for (adc_buffer_index = 0;
-                    adc_buffer_index < ANALOG_CHANNELS_SIZE && i < DMX_TX_BUFFER_SIZE;
-                    i++, adc_buffer_index++)
-            {                                       // Writes pattern-shaped values
-                dmx_write_byte(i + 1, sampling_curve[adc_output_buffer[adc_buffer_index]]);
-            }
-        }
-        else                                        // Else writes linear analog values
-        {
-            for (adc_buffer_index = 0;
-                    adc_buffer_index < ANALOG_CHANNELS_SIZE && i < DMX_TX_BUFFER_SIZE;
-                    i++, adc_buffer_index++)
+            if (check_sampling_curve())
             {
-                dmx_write_byte(i + 1, adc_output_buffer[adc_buffer_index]);
+                for (i = 0; i<DMX_TX_BUFFER_SIZE; i++)
+                {
+                    switch(i) 
+                    {
+                        // Front reds: 1st analog channel
+                        case 21:
+                        case 31:
+                        case 41:
+                        case 51:
+                        case 61:
+                        case 71:
+                        case 81:
+                            dmx_write_byte(i + 1, sampling_curve[adc_output_buffer[0]]);
+                            break;
+                         // Front greens: 2nd analog channel   
+                        case 22:
+                        case 32:
+                        case 42:
+                        case 52:
+                        case 62:
+                        case 72:
+                        case 82:
+                            dmx_write_byte(i + 1, sampling_curve[adc_output_buffer[1]]);
+                            break;
+                        // Front blues: 3rd analog channel   
+                        case 23:
+                        case 33:
+                        case 43:
+                        case 53:
+                        case 63:
+                        case 73:
+                        case 83:
+                            dmx_write_byte(i + 1, sampling_curve[adc_output_buffer[2]]);
+                            break;
+                        // Stage reds: 4th analog channel
+                        case 1:
+                        case 11:
+                            dmx_write_byte(i + 1, sampling_curve[adc_output_buffer[3]]);
+                            break;
+                         // Stage greens: 5th analog channel   
+                        case 2:
+                        case 12:
+                            dmx_write_byte(i + 1, sampling_curve[adc_output_buffer[4]]);
+                            break;
+                        // Stage blues: 6th analog channel   
+                        case 3:
+                        case 13:
+                            dmx_write_byte(i + 1, sampling_curve[adc_output_buffer[5]]);
+                            break; 
+                        // Strip control: 7th analog channel
+                        case 90:
+                            dmx_write_byte(i + 1, sampling_curve[adc_output_buffer[6]]);
+                            break;
+                        // Strip red: 8th analog channel
+                        case 91:
+                            dmx_write_byte(i + 1, sampling_curve[adc_output_buffer[7]]);
+                            break;
+                         // Strip green: 9th analog channel   
+                        case 92:
+                            dmx_write_byte(i + 1, sampling_curve[adc_output_buffer[8]]);
+                            break;
+                        // Strip blue: 10th analog channel   
+                        case 93:
+                            dmx_write_byte(i + 1, sampling_curve[adc_output_buffer[9]]);
+                            break;
+                        // Left dimmer: 11th analog channel
+                        case 94:
+                            dmx_write_byte(i + 1, sampling_curve[adc_output_buffer[10]]);
+                            break;
+                        // Right dimmer: 12th analog channel
+                        case 95:
+                            dmx_write_byte(i + 1, sampling_curve[adc_output_buffer[11]]);
+                            break;
+                        default:
+                            dmx_write_byte(i + 1, 0);
+                            break;
+                    }
+                } 
+            }
+            else
+            {
+               for (i = 0; i<DMX_TX_BUFFER_SIZE; i++)           // Writes 0 after analog channels
+                {
+                    switch(i) 
+                    {
+                        // Front reds: 1st analog channel
+                        case 21:
+                        case 31:
+                        case 41:
+                        case 51:
+                        case 61:
+                        case 71:
+                        case 81:
+                            dmx_write_byte(i + 1, adc_output_buffer[0]);
+                            break;
+                         // Front greens: 2nd analog channel   
+                        case 22:
+                        case 32:
+                        case 42:
+                        case 52:
+                        case 62:
+                        case 72:
+                        case 82:
+                            dmx_write_byte(i + 1, adc_output_buffer[1]);
+                            break;
+                        // Front blues: 3rd analog channel   
+                        case 23:
+                        case 33:
+                        case 43:
+                        case 53:
+                        case 63:
+                        case 73:
+                        case 83:
+                            dmx_write_byte(i + 1, adc_output_buffer[2]);
+                            break;
+                        // Stage reds: 4th analog channel
+                        case 1:
+                        case 11:
+                            dmx_write_byte(i + 1, adc_output_buffer[3]);
+                            break;
+                         // Stage greens: 5th analog channel   
+                        case 2:
+                        case 12:
+                            dmx_write_byte(i + 1, adc_output_buffer[4]);
+                            break;
+                        // Stage blues: 6th analog channel   
+                        case 3:
+                        case 13:
+                            dmx_write_byte(i + 1, adc_output_buffer[5]);
+                            break; 
+                        // Strip control: 7th analog channel
+                        case 90:
+                            dmx_write_byte(i + 1, adc_output_buffer[6]);
+                            break;
+                        // Strip red: 8th analog channel
+                        case 91:
+                            dmx_write_byte(i + 1, adc_output_buffer[7]);
+                            break;
+                         // Strip green: 9th analog channel   
+                        case 92:
+                            dmx_write_byte(i + 1, adc_output_buffer[8]);
+                            break;
+                        // Strip blue: 10th analog channel   
+                        case 93:
+                            dmx_write_byte(i + 1, adc_output_buffer[9]);
+                            break;
+                        // Left dimmer: 11th analog channel
+                        case 94:
+                            dmx_write_byte(i + 1, adc_output_buffer[10]);
+                            break;
+                        // Right dimmer: 12th analog channel
+                        case 95:
+                            dmx_write_byte(i + 1, adc_output_buffer[11]);
+                            break;
+                        default:
+                            dmx_write_byte(i + 1, 0);
+                            break;
+                    }
+                }  
+            }            
+        }
+        else 
+        {
+            for (i = 0; i<DMX_TX_BUFFER_SIZE; i++)           // Writes 0 for all channels
+            {
+                dmx_write_byte(i + 1, 0);
             }
         }
-        for (; i<DMX_TX_BUFFER_SIZE; i++)           // Writes 0 after analog channels
-        {
-            dmx_write_byte(i + 1, 0);
-        }
-        *address = start_address;                     // Store new address
     }
-    else                                            // If starting address hasn't changed
-    {                                               // only rewrites data channels
-        if (check_sampling_curve())              // Linear response check and shaping
-        {
-            for (adc_buffer_index = 0, i=start_address; // Writes analog data
-                    adc_buffer_index < ANALOG_CHANNELS_SIZE && i < DMX_TX_BUFFER_SIZE;
-                    i++, adc_buffer_index++)
+    else
+    {
+        if ((*address) != start_address)                     // If address has changed
+        {        
+            for (i = 0; i < start_address; i++)             // Writes 0 before starting analog channels
             {
-                dmx_write_byte(i + 1, sampling_curve[adc_output_buffer[adc_buffer_index]]);
+                dmx_write_byte(i + 1, 0);
             }
-        }
-        else
-        {
-            for (adc_buffer_index = 0, i = start_address; // Writes analog data
-                    adc_buffer_index < ANALOG_CHANNELS_SIZE && i < DMX_TX_BUFFER_SIZE;
-                    i++, adc_buffer_index++)
+
+            if(check_sampling_curve())                 // If non-linear response enabled
             {
-                dmx_write_byte(i + 1, adc_output_buffer[adc_buffer_index]);
+                for (adc_buffer_index = 0;
+                        adc_buffer_index < ANALOG_CHANNELS_SIZE && i < DMX_TX_BUFFER_SIZE;
+                        i++, adc_buffer_index++)
+                {                                       // Writes pattern-shaped values
+                    dmx_write_byte(i + 1, sampling_curve[adc_output_buffer[adc_buffer_index]]);
+                }
+            }
+            else                                        // Else writes linear analog values
+            {
+                for (adc_buffer_index = 0;
+                        adc_buffer_index < ANALOG_CHANNELS_SIZE && i < DMX_TX_BUFFER_SIZE;
+                        i++, adc_buffer_index++)
+                {
+                    dmx_write_byte(i + 1, adc_output_buffer[adc_buffer_index]);
+                }
+            }
+            for (; i<DMX_TX_BUFFER_SIZE; i++)           // Writes 0 after analog channels
+            {
+                dmx_write_byte(i + 1, 0);
+            }
+            *address = start_address;                     // Store new address
+        }
+        else                                            // If starting address hasn't changed
+        {                                               // only rewrites data channels
+            if (check_sampling_curve())              // Linear response check and shaping
+            {
+                for (adc_buffer_index = 0, i=start_address; // Writes analog data
+                        adc_buffer_index < ANALOG_CHANNELS_SIZE && i < DMX_TX_BUFFER_SIZE;
+                        i++, adc_buffer_index++)
+                {
+                    dmx_write_byte(i + 1, sampling_curve[adc_output_buffer[adc_buffer_index]]);
+                }
+            }
+            else
+            {
+                for (adc_buffer_index = 0, i = start_address; // Writes analog data
+                        adc_buffer_index < ANALOG_CHANNELS_SIZE && i < DMX_TX_BUFFER_SIZE;
+                        i++, adc_buffer_index++)
+                {
+                    dmx_write_byte(i + 1, adc_output_buffer[adc_buffer_index]);
+                }
             }
         }
     }
@@ -185,15 +365,18 @@ void port_init(void)
 }
 
 uint16_t read_address(void)
-{
-    //return 0;    
+{      
    return ((uint16_t) PORTC & 0x0007) | (((uint16_t) PORTD & 0x000F) << 3) | (((uint16_t) PORTC & 0x0030) << 3);   
 }
 
 uint8_t check_sampling_curve(void)
 {
-    return (uint8_t) PORTDbits.RD5;
-    //return 0;
+    return (uint8_t) PORTDbits.RD5;    
+}
+
+uint8_t check_special_mode(void)
+{
+    return (uint8_t) PORTDbits.RD7;
 }
 
 void interrupts_init()
