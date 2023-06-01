@@ -31,6 +31,11 @@
 //Bit 10 SW 11: RD6
 //Bit 11 SW 12: RD7
 
+//Debug pins
+//LED out: RB7 PGD
+//Button: RB6 PGC
+
+
 
 uint16_t address = 0;                 // Starting address
 uint8_t adc_output_buffer[ANALOG_CHANNELS_SIZE]; // ADC output buffer
@@ -46,13 +51,22 @@ uint8_t check_special_mode(void);                                               
 void set_deadZone(uint8_t* values, uint16_t valuesCount);
 void interrupts_init(void);                                                                    // configures global MCU's interrupts
 
+#ifdef DEBUG
+void init_debug_pins(void);
+uint8_t readDebugButton(void);
+void writeDebugPin(uint8_t value);
+#endif
+
 void main(void)
 {
+#ifdef DEBUG
+    init_debug_pins();
+    writeDebugPin(1);
+#endif
 #ifdef INT_OSC
     OSCCONbits.IRCF=0b111; //  8MHz, Config bits source
     OSCCONbits.SCS=0b11;   //   Int OSC
 #endif
-
 #ifdef PRIM_OSC
     OSCCONbits.SCS=0b00;   //   Primary OSC
 #endif
@@ -64,6 +78,12 @@ void main(void)
 
     while(1)
     {
+#ifdef DEBUG
+        if (readDebugButton())
+        {
+            writeDebugPin(0);
+        }
+#endif        
         start_conversion(adc_output_buffer, 0 , ANALOG_CHANNELS_SIZE);
         set_deadZone(adc_output_buffer, ANALOG_CHANNELS_SIZE);
         load_tx_buffer(read_address(), &address);              
@@ -74,6 +94,37 @@ void __interrupt(high_priority) isr_high(void)
 {
     dmx_interrupt(); // Process the DMX512 interrupts
 }
+
+#ifdef DEBUG
+void init_debug_pins(void)
+{
+    TRISBbits.TRISB6 = 1;
+    TRISBbits.TRISB7 = 0;
+    LATBbits.LATB7 = 0;
+    INTCON2bits.NOT_RBPU = 0;
+}
+
+uint8_t readDebugButton(void)
+{
+    if (PORTBbits.RB6)
+    {
+        return 0;
+    }
+    return 1;
+}
+
+void writeDebugPin(uint8_t value)
+{
+    if (value)
+    {
+        LATBbits.LATB7 = 1;
+    }
+    else
+    {
+        LATBbits.LATB7 = 0;
+    }
+}
+#endif
 
 void set_deadZone(uint8_t* values, uint16_t valuesCount)
 {
